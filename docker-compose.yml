@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  sql-server:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: "Password10$"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    networks:
+      - capricorn-network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - capricorn-network
+
+  redis:
+    image: redis/redis-stack:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - capricorn-network
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: .docker/transaction-service/Dockerfile
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__SqlServer=Server=sql-server;Database=RouteLink;User Id=sa;Password=Password10$;
+      - MongoDbSettings__ConnectionString=mongodb://mongodb:27017
+      - MongoDbSettings__DatabaseName=TransactionLogsDB
+      - MongoDbSettings__LogsCollectionName=TransactionLogs
+      - CapricornApi__BaseUrl=${CAPRICORN_API_BASE_URL}
+      - CapricornApi__ApiKey=${CAPRICORN_API_KEY}
+    depends_on:
+      - sql-server
+      - mongodb
+      - redis
+    networks:
+      - capricorn-network
+
+  account-service:
+    build:
+      context: .
+      dockerfile: .docker/account-service/Dockerfile
+    ports:
+      - "5001:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__SqlServer=Server=sql-server;Database=RouteLink;User Id=sa;Password=Password10$;
+      - Jwt__Key=${JWT_SECRET_KEY}
+      - Jwt__Issuer=CapricornFinancialIntegration
+      - Jwt__Audience=AccountService
+    depends_on:
+      - sql-server
+    networks:
+      - capricorn-network
+
+  logging-service:
+    build:
+      context: .
+      dockerfile: .docker/logging-service/Dockerfile
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - MongoDbSettings__ConnectionString=mongodb://mongodb:27017
+      - MongoDbSettings__DatabaseName=LoggingDB
+      - MongoDbSettings__LogsCollectionName=ApiLogs
+    depends_on:
+      - mongodb
+    networks:
+      - capricorn-network
+
+volumes:
+  sql-data:
+  mongo-data:
+  redis-data:
+
+networks:
+  capricorn-network:
+    driver: bridge
