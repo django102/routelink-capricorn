@@ -31,6 +31,7 @@ services:
     networks:
       - capricorn-network
 
+
   transaction-service:
     build:
       context: .
@@ -84,6 +85,28 @@ services:
       - mongodb
     networks:
       - capricorn-network
+
+
+  prometheus:
+    image: prom/prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      - transaction-service
+      - account-service
+      - logging-service
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - prometheus
+
 
 volumes:
   sql-data:

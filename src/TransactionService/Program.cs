@@ -90,6 +90,11 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddHealthChecks();
+// Add metrics
+builder.Services.AddMetrics();
+builder.Services.AddSingleton<MetricReporter>();
+
+
 
 var app = builder.Build();
 
@@ -105,5 +110,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+// Configure endpoint
+app.UseMetricServer();
+app.UseMiddleware<MetricsMiddleware>();
 
 app.Run();

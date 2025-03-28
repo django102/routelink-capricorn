@@ -18,7 +18,7 @@ namespace TransactionService.Services
         private readonly IConfiguration _configuration;
 
         public CapricornService(
-            HttpClient httpClient, 
+            HttpClient httpClient,
             ILogger<CapricornService> logger,
             IConfiguration configuration)
         {
@@ -30,7 +30,7 @@ namespace TransactionService.Services
             _retryPolicy = Policy<HttpResponseMessage>
                 .Handle<HttpRequestException>()
                 .OrResult(x => (int)x.StatusCode >= 500)
-                .WaitAndRetryAsync(3, retryAttempt => 
+                .WaitAndRetryAsync(3, retryAttempt =>
                     TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)),
                     onRetry: (response, delay, retryCount, context) =>
                     {
@@ -61,7 +61,20 @@ namespace TransactionService.Services
                 reference = Guid.NewGuid().ToString()
             };
 
-            return await ExecuteTransactionRequest(endpoint, payload, "Data");
+            var response = await ExecuteTransactionRequest(endpoint, payload, "Data");
+
+            // Parse the response to get the amount
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<CapricornDataResponse>(responseContent);
+
+            return new Transaction
+            {
+                Status = "Completed",
+                Reference = result.Reference,
+                TransactionType = "Data",
+                Provider = "Capricorn",
+                Amount = result.Amount
+            };
         }
 
         public async Task<Transaction> SubscribeTv(TvSubscriptionRequest request)
@@ -74,7 +87,20 @@ namespace TransactionService.Services
                 reference = Guid.NewGuid().ToString()
             };
 
-            return await ExecuteTransactionRequest(endpoint, payload, "TV");
+            var response = await ExecuteTransactionRequest(endpoint, payload, "TV");
+
+            // Parse the response to get the amount
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var result = JsonSerializer.Deserialize<CapricornTvResponse>(responseContent);
+
+            return new Transaction
+            {
+                Status = "Completed",
+                Reference = result.Reference,
+                TransactionType = "TV",
+                Provider = "Capricorn",
+                Amount = result.Amount
+            };
         }
 
         private async Task<Transaction> ExecuteTransactionRequest(string endpoint, object payload, string transactionType)
@@ -82,7 +108,7 @@ namespace TransactionService.Services
             try
             {
                 // Add authentication headers
-                _httpClient.DefaultRequestHeaders.Authorization = 
+                _httpClient.DefaultRequestHeaders.Authorization =
                     new AuthenticationHeaderValue("Bearer", _configuration["CapricornApi:ApiKey"]);
 
                 var content = new StringContent(
@@ -91,7 +117,7 @@ namespace TransactionService.Services
                     "application/json");
 
                 // Execute with retry policy
-                var response = await _retryPolicy.ExecuteAsync(async () => 
+                var response = await _retryPolicy.ExecuteAsync(async () =>
                     await _httpClient.PostAsync(endpoint, content));
 
                 if (!response.IsSuccessStatusCode)
@@ -123,6 +149,7 @@ namespace TransactionService.Services
         {
             public string Reference { get; set; }
             public string Status { get; set; }
+            public decimal Amount { get; set; }
         }
     }
 }
