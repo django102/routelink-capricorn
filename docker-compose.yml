@@ -10,6 +10,11 @@ services:
       - "1433:1433"
     volumes:
       - sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "Password10$", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - capricorn-network
 
@@ -19,6 +24,11 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - capricorn-network
 
@@ -28,6 +38,11 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - capricorn-network
 
@@ -46,6 +61,9 @@ services:
       - MongoDbSettings__LogsCollectionName=TransactionLogs
       - CapricornApi__BaseUrl=${CAPRICORN_API_BASE_URL}
       - CapricornApi__ApiKey=${CAPRICORN_API_KEY}
+      - Jwt__Key=${JWT_SECRET_KEY}
+      - Jwt__Issuer=CapricornFinancialIntegration
+      - Jwt__Audience=TransactionService
     depends_on:
       - sql-server
       - mongodb
@@ -86,6 +104,22 @@ services:
     networks:
       - capricorn-network
 
+  fraud-detection-service:
+    build:
+      context: .
+      dockerfile: .docker/fraud-detection-service/Dockerfile
+    ports:
+      - "5002:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - MongoDbSettings__ConnectionString=mongodb://mongodb:27017
+      - MongoDbSettings__DatabaseName=LoggingDB
+      - MongoDbSettings__LogsCollectionName=ApiLogs
+    depends_on:
+      - mongodb
+    networks:
+      - capricorn-network
+
 
   prometheus:
     image: prom/prometheus
@@ -101,7 +135,7 @@ services:
   grafana:
     image: grafana/grafana
     ports:
-      - "3000:3000"
+      - "4000:3000"
     volumes:
       - grafana-storage:/var/lib/grafana
     depends_on:
@@ -112,6 +146,7 @@ volumes:
   sql-data:
   mongo-data:
   redis-data:
+  grafana-storage:
 
 networks:
   capricorn-network:

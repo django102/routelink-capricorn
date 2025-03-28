@@ -12,7 +12,17 @@ builder.Services.AddControllers();
 // Configure Swagger with JWT support
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Account Service API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Account Service API",
+        Version = "v1",
+        Description = "API for managing accounts",
+        Contact = new OpenApiContact
+        {
+            Name = "Support",
+            Email = "support@xyz.com"
+        }
+    });
 
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
@@ -113,5 +123,7 @@ app.MapHealthChecks("/health");
 // Configure endpoint
 app.UseMetricServer();
 app.UseMiddleware<MetricsMiddleware>();
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.Run();

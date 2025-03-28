@@ -12,8 +12,18 @@ builder.Services.AddControllers();
 // Configure Swagger with JWT support
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "Logging Service API", Version = "v1" });
-    
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Logging Service API",
+        Version = "v1",
+        Description = "API for handling logs",
+        Contact = new OpenApiContact
+        {
+            Name = "Support",
+            Email = "support@xyz.com"
+        }
+    });
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header using the Bearer scheme",
@@ -22,7 +32,7 @@ builder.Services.AddSwaggerGen(c =>
         Type = SecuritySchemeType.ApiKey,
         Scheme = "Bearer"
     });
-    
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -37,6 +47,11 @@ builder.Services.AddSwaggerGen(c =>
             new string[] {}
         }
     });
+
+    // Include XML comments
+    var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    c.IncludeXmlComments(xmlPath);
 });
 
 // Add rate limiting
@@ -79,7 +94,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .WriteTo.Console()
-    .WriteTo.MongoDB(builder.Configuration["MongoDbSettings:ConnectionString"], 
+    .WriteTo.MongoDB(builder.Configuration["MongoDbSettings:ConnectionString"],
                      collectionName: builder.Configuration["MongoDbSettings:LogsCollectionName"])
     .CreateLogger();
 
@@ -93,6 +108,24 @@ builder.Services.AddHealthChecks();
 // Add metrics
 builder.Services.AddMetrics();
 builder.Services.AddSingleton<MetricReporter>();
+
+// Configure MongoDB
+var mongoClient = new MongoClient(builder.Configuration["MongoDbSettings:ConnectionString"]);
+var mongoDatabase = mongoClient.GetDatabase(builder.Configuration["MongoDbSettings:DatabaseName"]);
+builder.Services.AddSingleton(mongoDatabase);
+builder.Services.AddSingleton<IMongoLogger, MongoLogger>();
+
+builder.Services.AddHealthChecks()
+    .AddSqlServer(builder.Configuration.GetConnectionString("SqlServer"),
+        name: "sqlserver-check",
+        tags: new[] { "ready" })
+    .AddRedis(builder.Configuration.GetConnectionString("Redis"),
+        name: "redis-check",
+        tags: new[] { "ready" })
+    .AddMongoDb(builder.Configuration["MongoDbSettings:ConnectionString"],
+        name: "mongodb-check",
+        tags: new[] { "ready" });
+
 
 
 
@@ -110,8 +143,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+// Configure health check endpoint
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+});
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = _ => false
+});
 // Configure endpoint
 app.UseMetricServer();
 app.UseMiddleware<MetricsMiddleware>();
+app.UseMiddleware<RequestResponseLoggingMiddleware>();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 app.Run();
