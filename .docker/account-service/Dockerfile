@@ -5,17 +5,17 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
-COPY ["src/LoggingService/LoggingService.csproj", "LoggingService/"]
+COPY ["src/AccountService/AccountService.csproj", "AccountService/"]
 COPY ["src/Common/Common.csproj", "Common/"]
-RUN dotnet restore "LoggingService/LoggingService.csproj"
+RUN dotnet restore "AccountService/AccountService.csproj"
 COPY . .
-WORKDIR "/src/LoggingService"
-RUN dotnet build "LoggingService.csproj" -c Release -o /app/build
+WORKDIR "/src/AccountService"
+RUN dotnet build "AccountService.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "LoggingService.csproj" -c Release -o /app/publish
+RUN dotnet publish "AccountService.csproj" -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "LoggingService.dll"]
+ENTRYPOINT ["dotnet", "AccountService.dll"]

@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   sql-server:
@@ -11,7 +11,17 @@ services:
     volumes:
       - sql-data:/var/opt/mssql
     healthcheck:
-      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-U", "sa", "-P", "Password10$", "-Q", "SELECT 1"]
+      test:
+        [
+          "CMD",
+          "/opt/mssql-tools/bin/sqlcmd",
+          "-U",
+          "sa",
+          "-P",
+          "Password10$",
+          "-Q",
+          "SELECT 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -46,7 +56,6 @@ services:
     networks:
       - capricorn-network
 
-
   transaction-service:
     build:
       context: .
@@ -65,9 +74,13 @@ services:
       - Jwt__Issuer=CapricornFinancialIntegration
       - Jwt__Audience=TransactionService
     depends_on:
-      - sql-server
-      - mongodb
-      - redis
+      sql-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
     networks:
       - capricorn-network
 
@@ -84,7 +97,13 @@ services:
       - Jwt__Issuer=CapricornFinancialIntegration
       - Jwt__Audience=AccountService
     depends_on:
-      - sql-server
+      sql-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
     networks:
       - capricorn-network
 
@@ -100,7 +119,12 @@ services:
       - MongoDbSettings__DatabaseName=LoggingDB
       - MongoDbSettings__LogsCollectionName=ApiLogs
     depends_on:
-      - mongodb
+      sql-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - capricorn-network
 
@@ -116,10 +140,14 @@ services:
       - MongoDbSettings__DatabaseName=LoggingDB
       - MongoDbSettings__LogsCollectionName=ApiLogs
     depends_on:
-      - mongodb
+      sql-server:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - capricorn-network
-
 
   prometheus:
     image: prom/prometheus
@@ -131,6 +159,7 @@ services:
       - transaction-service
       - account-service
       - logging-service
+      - fraud-detection-service
 
   grafana:
     image: grafana/grafana
@@ -140,7 +169,6 @@ services:
       - grafana-storage:/var/lib/grafana
     depends_on:
       - prometheus
-
 
 volumes:
   sql-data:

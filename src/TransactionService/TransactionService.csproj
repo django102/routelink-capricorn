@@ -4,8 +4,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Exe</OutputType>
+    <!-- <IsPackable>true</IsPackable> -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
+    <StartupObject>TransactionService.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
