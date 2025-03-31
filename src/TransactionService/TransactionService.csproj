@@ -31,4 +31,10 @@
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.7.0" />
   </ItemGroup>
 
+  <!-- <ItemGroup>
+    <Compile Include="Mappings\*.cs" />
+    <Compile Include="Services\*.cs" />
+</ItemGroup> -->
+
+
 </Project>

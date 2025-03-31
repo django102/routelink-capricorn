@@ -6,6 +6,12 @@ using System.Text;
 using System.Text.Json;
 using TransactionService.Models;
 using Xunit;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
+using System.Threading.Tasks;
+
 
 namespace Integration.Tests
 {
